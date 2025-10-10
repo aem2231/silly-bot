@@ -8,7 +8,6 @@ load_dotenv()
 
 cogs_path = "./src/cogs"
 
-
 intents = discord.Intents.default()
 intents.message_content = True
 client = commands.Bot(command_prefix="!", intents=intents)
