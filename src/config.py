@@ -6,9 +6,9 @@ tokens_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tok
 
 try:
   with open(tokens_path, "r") as tokens:
-    tokenList: dict[str, str] = json.load(tokens)
-    discordToken: str = tokenList["BOT_TOKEN"]
-    giphyToken: str = tokenList["GIPHY_API_TOKEN"]
+    tokenList = json.load(tokens)  # pyright: ignore[reportAny]
+    discordToken: str = tokenList["BOT_TOKEN"]  # pyright: ignore[reportAny]
+    giphyToken: str = tokenList["GIPHY_API_TOKEN"]  # pyright: ignore[reportAny]
 except FileNotFoundError:
   with open(tokens_path, "w") as tokens:
     template = {
