@@ -100,3 +100,5 @@ __pycache__
 
 .venv
 tokens.json
+
+.direnv
