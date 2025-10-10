@@ -13,6 +13,7 @@
        ping3
        requests
        discordpy
+       python-dotenv
      ]);
    in
    {

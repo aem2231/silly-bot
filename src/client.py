@@ -1,12 +1,13 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import config
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 cogs_path = "./src/cogs"
-token = config.discordToken
-giphyToken = config.giphyToken
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -31,9 +32,5 @@ async def on_ready():
         print(f"Failed to load {cog[:-3]} cog: {e}")
   _ = await tree.sync()
 
-@client.tree.command(name="echo", description="Echoes a message.")
-@app_commands.describe(message="The message to echo.")
-async def echo(interaction: discord.Interaction, message: str) -> None:
-  _ = await interaction.response.send_message(message)
 
-client.run(config.discordToken)
+client.run(os.getenv("BOT_TOKEN"))
