@@ -13,5 +13,10 @@ class General(commands.Cog):
   async def ping(self, inter: discord.Interaction) -> None:
     _ = await inter.response.send_message(f"Pong! {round(self.bot.latency * 1000)}ms") # the _ stops your linter/type checker from being a crybaby bitch
 
+  @group.command(name="echo", description="Echoes a message.")
+  @app_commands.describe(message="The message to echo.")
+  async def echo(self, inter: discord.Interaction, message: str) -> None:
+    _ = await inter.response.send_message(message)
+
 async def setup(bot: commands.Bot) -> None:
   await bot.add_cog(General(bot))
