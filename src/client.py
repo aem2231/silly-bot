@@ -31,5 +31,16 @@ async def on_ready():
         print(f"Failed to load {cog[:-3]} cog: {e}")
   _ = await tree.sync()
 
+async def is_developer(interaction: discord.Interaction):
+  return interaction.user.id in [708680864728350790, 432799156440924160]
+
+@client.tree.command(name='reload-extension')
+@app_commands.check(is_developer)
+async def reload_extension(interaction: discord.Interaction, extension: str):
+  try:
+    await client.reload_extension(f"cogs.{extension}")
+    _ = await interaction.response.send_message(f"{extension} extension reloaded successfully.")
+  except Exception as e:
+    _ = await interaction.response.send_message(f"Failed to reload {extension} extension: {e}")
 
 client.run(os.getenv("BOT_TOKEN"))
