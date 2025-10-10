@@ -1,0 +1,5 @@
+qrcode
+aiohttp
+ping3
+requests
+discordpy
