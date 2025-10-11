@@ -104,3 +104,5 @@ tokens.json
 .direnv
 
 .env
+
+db1
