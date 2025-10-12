@@ -125,10 +125,8 @@ class Database():
         result = cursor.fetchone()
 
         if self.check_guild_presence(guild_id, result) == False:
-          # Server was just added, set last_bank_rob to 0 so the server can bank_rob
-          _ = cursor.execute(update_statement, {"unix_time": 0, "id": guild_id})
+          _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": guild_id})
           conn.commit()
-          print("bank_rob allowed (new server)")
           return (True, 0)
 
         last_bank_rob = result[0]

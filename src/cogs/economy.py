@@ -156,21 +156,15 @@ class Economy(commands.Cog):
       fine = balance//10
       new_balance = balance - fine
       self.db.update_coins(inter.user.id, new_balance)
-      description = f"You were caughtand fined {fine} coins. Your new balance is {new_balance}"
+      description = f"You were caught and fined {fine} coins. Your new balance is {new_balance}"
     else:
       half_hour_seconds = 1800  # 30 minutes
 
       last_rob_time = can_bank_rob[1]  # Unix timestamp of last rob
-      now = time.time()
-
-      # Time passed since last rob
+      now = time.time() # get current time
       time_since_last_rob = now - last_rob_time
-
-      # Time left before next rob allowed
       time_to_bank = max(0, half_hour_seconds - time_since_last_rob)
-
-      # Convert seconds to rounded minutes
-      minutes_to_bank = round(time_to_bank / 60)
+      minutes_to_bank = round(time_to_bank / 60) # convert seconds to minutes
 
       description = f"The bank has recently been robbed. It can next be robbed in {minutes_to_bank}m"
 
