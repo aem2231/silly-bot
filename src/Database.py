@@ -18,10 +18,15 @@ class Database():
         `guild_id` TEXT not null,
         `last_bank_rob` INT null,
         primary key (`guild_id`)
-      )"""
+      )""",
+      """create table if not exists `levelling` (
+        `user_id` TEXT not null,
+        `xp` INT null default 0,
+        `level` INT null default 0,
+        primary key (`user_id`)
+      )""",
     ]
     self.init_db()
-    print("import workin")
 
   def init_db(self):
     self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -208,6 +213,7 @@ class Database():
       print("added", id)
       return False
     return True
+
 #db1 = Database()
 #db1.update_coins(2, 20)
 #db1.get_balance(2)
