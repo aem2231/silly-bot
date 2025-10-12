@@ -1,42 +1,88 @@
-## Code Review: `src/Database.py`
+Code Review and Refactoring Guide: `src/Database.py`
 
-Here are some suggestions to simplify and improve your `Database.py` file.
+This document provides a detailed code review of `Database.py` and a guide to refactoring it effectively. The goal is to make the code more efficient, readable, and maintainable by applying established software development best practices.
 
-### 1. Centralize Database Connection Management
+---
 
-**Observation:** A new database connection is established and closed in almost every method using `with sqlite3.connect(self.db_path) as conn:`. While the `with` statement correctly handles closing the connection, creating new connections repeatedly can be inefficient.
+## Part 1: Code Review of `Database.py`
 
-**Suggestion:** Create a single, persistent database connection when the `Database` class is instantiated. This connection can be stored in `self.conn` and reused by all methods. You would then be responsible for explicitly committing transactions and closing the connection when the application shuts down.
+The current implementation is functional, but there are several key areas where it can be significantly improved.
 
-**Example:**
+### 1.1. Inefficient Connection Management
+
+**Observation:** A new database connection is established and closed in nearly every method.
 
 ```python
-class Database:
-    def __init__(self):
-        # ... (other setup)
-        self.conn = sqlite3.connect(self.db_path)
-        self.init_db()
-
-    def close(self):
-        self.conn.close()
-
-    def some_method(self):
-        cursor = self.conn.cursor()
-        # ... do stuff ...
-        self.conn.commit()
+# From get_balance()
+try:
+  with sqlite3.connect(self.db_path) as conn:
+    # ...
+except sqlite3.OperationalError as e:
+  # ...
 ```
 
-**Reading:**
+While using a `with` statement is good practice for ensuring resources are closed, creating a new connection for every single query is inefficient. Database connections are expensive to create, and doing so repeatedly adds unnecessary latency to your application.
 
-*   **sqlite3 Connection Objects:** [https://docs.python.org/3/library/sqlite3.html#connection-objects](https://docs.python.org/3/library/sqlite3.html#connection-objects)
+### 1.2. High Code Duplication (Violates DRY Principle)
 
-### 2. Reduce Code Duplication with a Decorator for Cursor and Error Handling
+The "Don't Repeat Yourself" (DRY) principle is a cornerstone of good software design. The current code has three main areas of duplication.
 
-**Observation:** The `try...except sqlite3.OperationalError` block is repeated in almost every method that interacts with the database. This is a lot of boilerplate code.
+**A. Error Handling:**
+The `try...except sqlite3.OperationalError` block is repeated in almost every method. This boilerplate code clutters the logic of each method.
 
-**Suggestion:** Create a Python decorator to handle getting a cursor from the connection and catching exceptions. This will make your database methods much cleaner and easier to read.
+**B. User/Guild Presence Checks:**
+The logic to check if a user or guild exists, and to add them if they don't, is duplicated across `update_coins`, `get_balance`, `check_daily`, etc.
 
-**Example:**
+```python
+# From get_balance()
+_ = cursor.execute(select_statement, {"id": id})
+result = cursor.fetchone()
+
+if self.check_user_presence(id, result) == False:
+  self.add_user(id)
+  _ = cursor.execute(select_statement, {"id": id})
+  result = cursor.fetchone()
+```
+
+This pattern is verbose and inefficient, sometimes requiring multiple database queries for a single operation.
+
+**C. Cooldown Logic:**
+The methods `check_daily`, `check_bank`, and `check_work` are nearly identical. They all fetch a timestamp, compare it against a cooldown period, and potentially update the timestamp. The only differences are the table, the column names, and the cooldown duration. This is a classic case for abstraction.
+
+### 1.3. Minor Readability Issues
+
+*   **Unnecessary assignments:** The `_ = cursor.execute(...)` pattern is unnecessary. The return value of `cursor.execute` doesn't need to be assigned.
+*   **Debugging with `print()`:** Using `print()` for errors and status messages is fine for small scripts, but a dedicated logging framework provides more control over message levels (e.g., DEBUG, INFO, ERROR) and where messages are sent.
+
+---
+
+## Part 2: Recommended Refactoring Approach
+
+For a file of this size, a full rewrite or a complex pattern like the "Strangler Fig" is unnecessary. The best approach is an **incremental refactoring on a new `git` branch**, using a set of automated tests as a safety net.
+
+Since you don't have a test file yet, the first step would be to create one (`tests/test_database.py`) and write tests that confirm the current behavior. However, you can also proceed carefully without them.
+
+### Recommended Steps:
+
+1.  **Create a New Branch:** Start by creating a new branch in git (e.g., `git checkout -b refactor-database`). This isolates your work and keeps the `main` branch clean.
+2.  **Centralize the Connection:** Modify the `__init__` method to create a single, persistent database connection and store it in `self.conn`. Create a `close()` method to close this connection when the application shuts down.
+3.  **Introduce a Decorator:** Create the `db_cursor` decorator as discussed. This decorator will be responsible for getting a cursor, managing transactions (commit/rollback), and handling exceptions. This immediately cleans up the duplicated `try...except` blocks.
+4.  **Generalize User/Guild Checks:** Create a single helper method, like `_ensure_row_exists(self, cursor, table, id_column, id_value)`, that uses an `INSERT OR IGNORE` command. This is a highly efficient way to ensure a row exists without needing to `SELECT` first.
+5.  **Generalize Cooldown Logic:** Create a single helper method, `_check_cooldown(...)`, that contains the shared logic from `check_daily`, `check_bank`, and `check_work`. The original methods will then become simple, one-line calls to this new, powerful helper.
+6.  **Refactor Method by Method:** Go through each original method (`get_balance`, `update_coins`, etc.) and apply the new tools:
+    *   Add the `@db_cursor` decorator.
+    *   Update the method signature to accept the `cursor` argument.
+    *   Replace the manual presence-checking logic with a call to `_ensure_row_exists`.
+    *   Remove the `with sqlite3.connect(...)` blocks.
+7.  **Clean Up:** Remove the now-redundant `check_user_presence` and `check_guild_presence` methods.
+
+---
+
+## Part 3: Detailed Explanations
+
+### The `db_cursor` Decorator
+
+A decorator is a function that wraps another function to add new functionality. Our `db_cursor` decorator automates the repetitive parts of a database operation.
 
 ```python
 from functools import wraps
@@ -44,61 +90,34 @@ from functools import wraps
 def db_cursor(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
+        # 1. Get cursor (setup)
+        cursor = self.conn.cursor()
         try:
-            cursor = self.conn.cursor()
+            # 2. Run the original function, passing the cursor in
             result = func(self, cursor, *args, **kwargs)
+            # 3. Commit the transaction on success (teardown)
             self.conn.commit()
             return result
         except sqlite3.OperationalError as e:
-            print(f'fail: {e}')
-            # self.conn.rollback() might be needed here
+            # 4. Rollback on error (error handling)
+            print(f'Database error: {e}')
+            self.conn.rollback()
             return None
     return wrapper
-
-class Database:
-    # ...
-
-    @db_cursor
-    def get_balance(self, cursor, user_id):
-        # ... now you have a cursor and error handling for free
 ```
 
-**Reading:**
+When you apply this with `@db_cursor` to a method, you are transparently wrapping it in this setup, teardown, and error-handling logic.
 
-*   **Python Decorators:** [https://realpython.com/primer-on-python-decorators/](https://realpython.com/primer-on-python-decorators/)
-*   **`functools.wraps`:** [https://docs.python.org/3/library/functools.html#functools.wraps](https://docs.python.org/3/library/functools.html#functools.wraps)
+---
 
-### 3. Generalize Repetitive Logic
+## Part 4: References and Further Reading
 
-**Observation:**
-
-*   The `check_user_presence` and `check_guild_presence` methods are nearly identical.
-*   The logic for checking and adding a user if they don't exist is repeated in `update_coins`, `get_balance`, `check_daily`, and `check_work`.
-*   The `check_daily`, `check_bank`, and `check_work` methods all share the same core logic: get a timestamp, compare it to the current time plus a cooldown, and update it if the cooldown has passed.
-
-**Suggestion:**
-
-*   Combine `check_user_presence` and `check_guild_presence` into a single, more generic method like `_ensure_row_exists(self, table_name, id_column, id_value)`.
-*   Create a single, generalized method for handling cooldowns, for example: `_check_cooldown(self, table, id_column, time_column, cooldown_seconds, id_value)`. The existing `check_daily`, `check_bank`, and `check_work` methods can then become simple, one-line calls to this new method with the appropriate parameters.
-
-### 4. Improve Readability and Minor Code Cleanup
-
-**Observation:**
-
-*   `_ = cursor.execute(...)`: The underscore `_` is not necessary. You can simply call `cursor.execute(...)`.
-*   The `print()` statements used for debugging should ideally be replaced with a proper logging library like Python's built-in `logging` module. This gives you more control over when and where to show debug messages.
-
-**Suggestion:**
-
-*   Remove the `_ =` from `cursor.execute` calls.
-*   Consider using the `logging` module for debug output instead of `print()`.
-
-**Reading:**
-
-*   **Logging in Python:** [https://docs.python.org/3/howto/logging.html](https://docs.python.org/3/howto/logging.html)
-
-### Further Reading (Advanced)
-
-For more complex database interactions, you might consider using an Object-Relational Mapper (ORM) like SQLAlchemy. An ORM allows you to work with your database using Python objects instead of writing raw SQL, which can further simplify your code and reduce the chance of errors.
-
-*   **SQLAlchemy:** [https://www.sqlalchemy.org/](https://www.sqlalchemy.org/)
+*   **Python `sqlite3` Official Docs:**
+    *   [https://docs.python.org/3/library/sqlite3.html](https://docs.python.org/3/library/sqlite3.html)
+*   **Python Decorators (Excellent Guide):**
+    *   [https://realpython.com/primer-on-python-decorators/](https://realpython.com/primer-on-python-decorators/)
+*   **Refactoring Best Practices (by Martin Fowler, a key figure in software engineering):**
+    *   [Branch by Abstraction](https://martinfowler.com/bliki/BranchByAbstraction.html)
+    *   [Strangler Fig Application](https://martinfowler.com/bliki/StranglerFigApplication.html)
+*   **Object-Relational Mappers (ORMs) - For future projects:**
+    *   [SQLAlchemy
