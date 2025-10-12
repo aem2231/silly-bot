@@ -13,11 +13,6 @@ intents.message_content = True
 client = commands.Bot(command_prefix="!", intents=intents)
 tree = client.tree
 
-def setup_config():
-  if not os.path.exists("data/"):
-    os.mkdir("data")
-setup_config()
-
 @client.event
 async def on_ready():
   print("Client is running!")

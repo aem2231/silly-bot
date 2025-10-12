@@ -49,13 +49,10 @@ class Database():
           _ = cursor.execute(select_statement, {"id": id})
           result = cursor.fetchone()
 
-        curr_balance = int(result[0])
-        new_balance = curr_balance + coins
-
         update_statement = "UPDATE users SET balance = :coins WHERE user_id = :id"
-        _ = cursor.execute(update_statement, {"coins": new_balance, "id": id})
+        _ = cursor.execute(update_statement, {"coins": coins, "id": id})
         conn.commit()
-        return new_balance
+        return True
     except sqlite3.OperationalError as e:
       print(f'fail: {e}')
       return None
@@ -75,6 +72,7 @@ class Database():
 
         balance = result[0]
         return balance
+
     except sqlite3.OperationalError as e:
       print(e)
       return None
@@ -96,8 +94,7 @@ class Database():
           # User was just added, set their last_daily to 0 so they can get daily
           _ = cursor.execute(update_statement, {"unix_time": 0, "id": id})
           conn.commit()
-          print("daily allowed (new user)")
-          return True
+          return (True, 0)
 
         # User exists, check their last daily time
         last_daily = result[0]
@@ -105,11 +102,10 @@ class Database():
           # Update their last_daily to current time
           _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": id})
           conn.commit()
-          print("daily allowed")
-          return True
+          return (True, 0)
         else:
-          print("daily blocked")
-          return False
+          time_since_last_daily = unix_time - last_daily
+          return (False, time_since_last_daily)
 
     except sqlite3.OperationalError as e:
       print(e)
@@ -133,19 +129,16 @@ class Database():
           _ = cursor.execute(update_statement, {"unix_time": 0, "id": guild_id})
           conn.commit()
           print("bank_rob allowed (new server)")
-          return True
+          return (True, 0)
 
-        # User exists, check last bank_rob time
         last_bank_rob = result[0]
         if last_bank_rob is None or last_bank_rob + half_hour_seconds < unix_time:
           # Update last_bank_rob to current time
           _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": guild_id})
           conn.commit()
-          print("bank_rob allowed")
-          return True
+          return (True, 0)
         else:
-          print("bank_rob blocked")
-          return False
+          return (False, last_bank_rob)
 
     except sqlite3.OperationalError as e:
       print(e)
@@ -167,17 +160,14 @@ class Database():
         if self.check_user_presence(id, result) == False:
           _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": id})
           conn.commit()
-          print("work allowed (new user)")
           return (True, 0)
 
         last_work = result[0]
         if last_work is None or last_work + six_hours_seconds < unix_time:
           _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": id})
           conn.commit()
-          print("work allowed")
           return (True, 0)
         else:
-          print("work blocked")
           time_since_last_work = unix_time - last_work
           return (False, time_since_last_work)
 
