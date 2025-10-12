@@ -165,20 +165,21 @@ class Database():
         result = cursor.fetchone()
 
         if self.check_user_presence(id, result) == False:
-          _ = cursor.execute(update_statement, {"unix_time": 0, "id": id})
+          _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": id})
           conn.commit()
-          print("daily allowed (new user)")
-          return True
+          print("work allowed (new user)")
+          return (True, 0)
 
         last_work = result[0]
         if last_work is None or last_work + six_hours_seconds < unix_time:
           _ = cursor.execute(update_statement, {"unix_time": unix_time, "id": id})
           conn.commit()
           print("work allowed")
-          return True
+          return (True, 0)
         else:
           print("work blocked")
-          return False
+          time_since_last_work = unix_time - last_work
+          return (False, time_since_last_work)
 
     except sqlite3.OperationalError as e:
       print(e)
@@ -219,7 +220,6 @@ class Database():
       print("added", id)
       return False
     return True
-
 #db1 = Database()
 #db1.update_coins(2, 20)
 #db1.get_balance(2)
