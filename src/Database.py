@@ -1,6 +1,5 @@
 import sqlite3
 from pathlib import Path
-from sqlite3.dbapi2 import sqlite_version
 import datetime
 
 class Database():
@@ -18,15 +17,10 @@ class Database():
         `guild_id` TEXT not null,
         `last_bank_rob` INT null,
         primary key (`guild_id`)
-      )""",
-      """create table if not exists `levelling` (
-        `user_id` TEXT not null,
-        `xp` INT null default 0,
-        `level` INT null default 0,
-        primary key (`user_id`)
-      )""",
+      )"""
     ]
     self.init_db()
+    print("import workin")
 
   def init_db(self):
     self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,6 +76,7 @@ class Database():
       print(e)
       return None
 
+  # parts of the logic for check_daily, check_bank and check_work could be merged into a helper function called check_cooldown(cooldown_type, id)
   def check_daily(self, id):
     day_seconds = 86400
     current_time = datetime.datetime.now()
@@ -178,6 +173,8 @@ class Database():
       print(e)
       return None
 
+
+  # the remaining functions could be merged into a single helper function: check_entity_presence(entity_type, id)
   def add_user(self, id):
     try:
       with sqlite3.connect(self.db_path) as conn:
@@ -213,7 +210,6 @@ class Database():
       print("added", id)
       return False
     return True
-
 #db1 = Database()
 #db1.update_coins(2, 20)
 #db1.get_balance(2)

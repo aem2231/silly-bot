@@ -11,12 +11,14 @@ class Economy(commands.Cog):
     self.bot: commands.Bot = bot
     self.db = Database()
     self.job_list = [
-      "Cleaner",
-      "Cashier",
-      "Uber Driver",
-      "Bartender",
-      "Binman",
-      "Twitch streamer"
+      "cleaner",
+      "cashier",
+      "uber driver",
+      "bartender",
+      "binman",
+      "twitch streamer",
+      "delivery driver",
+      "bus driver"
     ]
 
   @group.command(name="work", description="Work a random job for some dabloons.")
@@ -33,6 +35,8 @@ class Economy(commands.Cog):
       _ = await inter.response.send_message(embed=embed)
       return
 
+    # could be moved to a helper function to avoid repetition: calculate_remaining_cooldown(cooldown, cooldown_start_unix_timestamp)
+    # also found on lines 77-85 and 165-171
     if can_work[0] == False:
       six_hours_seconds = 21600
       time_since_last_work = can_work[1]

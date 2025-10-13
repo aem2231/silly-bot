@@ -19,7 +19,10 @@
    in
    {
      devShells.${system}.default = pkgs.mkShell {
-       buildInputs = [ python ];
+       buildInputs = [
+         python
+         pkgs.sqlite
+       ];
      };
    };
 }
