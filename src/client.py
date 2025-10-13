@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
 
@@ -12,6 +13,11 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = commands.Bot(command_prefix="!", intents=intents)
 tree = client.tree
+
+def setup_config():
+  if not os.path.exists("data/"):
+    os.mkdir("data")
+setup_config()
 
 @client.event
 async def on_ready():
@@ -37,5 +43,36 @@ async def reload_extension(interaction: discord.Interaction, extension: str):
     _ = await interaction.response.send_message(f"{extension} extension reloaded successfully.")
   except Exception as e:
     _ = await interaction.response.send_message(f"Failed to reload {extension} extension: {e}")
+
+def get_badwords():
+    path = "data/badwords.txt"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            content = f.read().strip()
+            words = [w.strip() for w in content.split(",") if w.strip()]
+        return words
+    return []
+  
+  
+@client.event
+async def on_message(message: discord.message):
+  if message.author == client.user:
+    return
+  
+  # Prints each message
+  print(f"Message from {message.author}: {message.content}")
+
+  # Gets moderation file
+  badwords=get_badwords()
+  
+  # Checks if message contains any bad words
+  for word in badwords:
+    print("checking", word)
+    if word.lower() in message.content.lower():
+      print("bw detected")
+      #await message.delete()
+      await message.channel.send("You shouldnt be saying that")
+      
+  await client.process_commands(message)
 
 client.run(os.getenv("BOT_TOKEN"))
