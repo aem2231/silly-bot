@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
-import pandas as pd
 
 load_dotenv()
 
@@ -52,19 +51,19 @@ def get_badwords():
             words = [w.strip() for w in content.split(",") if w.strip()]
         return words
     return []
-  
-  
+
+
 @client.event
 async def on_message(message: discord.message):
   if message.author == client.user:
     return
-  
+
   # Prints each message
   print(f"Message from {message.author}: {message.content}")
 
   # Gets moderation file
   badwords=get_badwords()
-  
+
   # Checks if message contains any bad words
   for word in badwords:
     print("checking", word)
@@ -72,7 +71,7 @@ async def on_message(message: discord.message):
       print("bw detected")
       #await message.delete()
       await message.channel.send("You shouldnt be saying that")
-      
+
   await client.process_commands(message)
 
 client.run(os.getenv("BOT_TOKEN"))

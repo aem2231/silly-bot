@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from functools import wraps
-from DatabaseRefactor import Database
+from database_manager import Database
 import constants as const
 import random
 import datetime
