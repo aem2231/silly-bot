@@ -1,6 +1,6 @@
 from pathlib import Path
 
-DB_PATH = Path("db1/database.db")
+DB_PATH = Path(__file__).parent.parent / "db1" / "database.db"
 USER_TABLE = "users"
 GUILD_TABLE = "server"
 USER_COLUMN = "user_id"
