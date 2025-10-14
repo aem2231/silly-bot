@@ -1,61 +1,85 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from DatabaseRefactor import EconomyDatabase
+from functools import wraps
+from DatabaseRefactor import Database
+import constants
 import random
-import time
+import datetime
+
 
 class Economy(commands.Cog):
   group = app_commands.Group(name="economy", description="Economy commands")
   def __init__(self, bot: commands.Bot) -> None:
-    # id types and cooldowns to be passed to database functions when needed
-    self.user_column = "user_id"
-    self.guild_column = "guild_id"
-    self.user_table = "users"
-    self.guild_table = "server"
-    self.daily_column = "last_daily"
-    self.bank_rob_columnn = "last_bank_rob"
-    self.work_column = "last_work"
-    self.cooldowns = {
-      "bank_rob": 1800,
-      "work": 21600,
-      "daily": 86400
-    }
-
-    self.job_list = [
-      "cleaner",
-      "cashier",
-      "uber driver",
-      "bartender",
-      "binman",
-      "twitch streamer",
-      "delivery driver",
-      "bus driver"
-    ]
-
     self.bot: commands.Bot = bot
-    self.db = EconomyDatabase()
 
+  async def convert_cooldown_to_hours(self, remaining_time):
+    remaining_time_hours = int(remaining_time // 3600)
+    remaining_time_minutes = int((remaining_time % 3600) // 60)
 
-  def build_embed(self, embed_title, embed_description, embed_color):
-    embed = discord.Embed(
-      title=embed_title,
-      description=embed_description,
-      color=embed_color
-    )
-    return embed
+    return (remaining_time_hours, remaining_time_minutes)
+
+  async def check_cooldown(self, id, payout):
+    async with Database() as db:
+      remaining_cooldown = await db.get_cooldown_start(constants.WORK_COLUMN, constants.USER_TABLE, constants.COOLDOWNS["work"], constants.USER_COLUMN, id)
+      if remaining_cooldown == 0:
+        new_balance = await self.payout(id, payout)
+        return (True, new_balance)
+      return (False, remaining_cooldown)
+
+  async def payout(self, id, coins):
+    async with Database() as db:
+      current_balance = await db.get_balance(id)
+      new_balance = current_balance + coins
+      await db.update_coins(id, new_balance)
+      return new_balance
+
+  async def get_random_job(self):
+    job_index = random.randint(0, len(constants.JOB_LIST) - 1)
+    return constants.JOB_LIST[job_index]
 
   @group.command(name="daily", description="Claim your daily coins!")
-  async def daily(self, inter: discord.Interaction) -> None:
-    remaining_cooldown = self.db.check_cooldown(self.daily_column, self.user_table, self.cooldowns["daily"], self.user_column, inter.user.id)
-    if remaining_cooldown == 0:
-      _ = await inter.response.send_message("daily allowed")
-      return
-    _ = await inter.response.send_message("daily blocked")
+  async def daily(self, inter) -> None:
+    payout = constants.DAILY_PAYOUT
+    result = await self.check_cooldown(inter.user.id, payout)
 
-  @group.command(name="work", description="Work a random job for some dabloons.")
+    if result[0]:
+      embed = discord.Embed(
+        title="Daily :coin:",
+        description=f"{constants.DAILY_PAYOUT} collected! Your balance is now {result[1]}.",
+        color=discord.Color.green())
+      await inter.response.send_message(embed=embed)
+      return
+
+    hours, minutes = await self.convert_cooldown_to_hours(result[1])
+    embed = discord.Embed(
+      title="Daily :coin:",
+      description=f"You can't caim your daily for another {hours}hrs and {minutes}m",
+      color=discord.Color.red()
+    )
+
+  @group.command(name="work", description="Work a random job for some coins.")
   async def work(self, inter: discord.Interaction) -> None:
-    pass
+    payout = random.randint(constants.MIN_WORK_PAYOUT, constants.MAX_WORK_PAYOUT)
+    result =  await self.check_cooldown(inter.user.id, payout)
+
+    if result[0]:
+      job = await self.get_random_job()
+      embed = discord.Embed(
+        title="Work",
+        description=f"You worked as a {job} and got paid {result[1]} coins.",
+        color=discord.Color.green()
+      )
+      await inter.response.send_message(embed=embed)
+      return
+    hours, minutes = await self.convert_cooldown_to_hours(result[1])
+    embed = discord.Embed(
+      title="Work",
+      description=f"You can't work for another {hours}hrs and {minutes}m",
+      color=discord.Color.red()
+    )
+    await inter.response.send_message(embed=embed)
+    return
 
   @group.command(name="balance", description="Check your balance.")
   async def balance(self, inter: discord.Interaction) -> None:

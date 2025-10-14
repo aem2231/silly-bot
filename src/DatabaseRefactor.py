@@ -1,34 +1,37 @@
-import sqlite3
+import aiosqlite
 from pathlib import Path
 import datetime
 from functools import wraps
+import constants
 
 def db_cursor(func):
-  @wraps(func) # a wrapper function handle error handling for database operation
-  def wrapper(self, *args, **kwargs):
-    cursor = self.conn.cursor()
-    try:
-      result = func(self, cursor, *args, **kwargs)
-      self.conn.commit()
-      return result
-    except Exception as e:
-      print(f"Database error: {e}")
-      self.conn.rollback()
-      return None
+  @wraps(func)
+  async def wrapper(self, *args, **kwargs):
+    async with self.conn.cursor() as cursor:
+      try:
+        result = await func(self, cursor, *args, **kwargs)
+        await self.conn.commit()
+        return result
+      except Exception as e:
+        print(f"Database error: {e}")
+        await self.conn.rollback()
+        raise
   return wrapper
 
-class EconomyDatabase():
+class Database():
   def __init__(self):
-    self.db_path = Path("db1/database.db")
-    self.user_table = "users"
-    self.guild_table = "server"
-    self.user_column = "user_id"
-    self.guild_column = "guild_id"
-    self.conn = sqlite3.connect(self.db_path)
-    self.db_setup()
+    self.conn = None
 
-  @db_cursor
-  def db_setup(self, cursor):
+  async def __aenter__(self):
+    self.conn = await aiosqlite.connect(constants.DB_PATH)
+    await self._db_setup()
+    return self
+
+  async def __aexit__(self, exec_type, exc_value, exc_traceback):
+    if self.conn:
+        await self.conn.close()
+
+  async def _db_setup(self):
     setup_statements = [
       """create table if not exists `users` (
         `user_id` TEXT not null,
@@ -49,53 +52,61 @@ class EconomyDatabase():
         primary key (`user_id`)
       )"""
     ]
+    async with self.conn.cursor() as cursor:
+        for statement in setup_statements:
+            await cursor.execute(statement)
 
-    for statement in setup_statements:
-      cursor.execute(statement)
-
-  def calculate_remaining_cooldown(self, cooldown_length, cooldown_start_unix_timestamp):
+  async def calculate_remaining_cooldown(self, cooldown_length, cooldown_start_unix_timestamp):
     current_time = datetime.datetime.now().timestamp()
     if cooldown_length + cooldown_start_unix_timestamp < current_time:
       return 0
     return (cooldown_start_unix_timestamp + cooldown_length) - current_time
 
   @db_cursor
-  def check_cooldown(self, cursor, task, table, cooldown_length, id_column, id):
-    self.check_entity_presence(cursor, table, id_column, id)
-    statement = f"SELECT {task} FROM {table} WHERE {id_column} = :id"
-    cursor.execute(statement, {"id": id})
-    row = cursor.fetchone()
+  async def update_cooldown(self, cursor, column, table, id_column, id):
+    unix_time = datetime.datetime.now().timestamp()
+    statement = f"UPDATE {table} SET {column} = :unix_time WHERE {id_column} = :id"
+    await cursor.execute(statement, {f"unix_time": unix_time, "id": id})
+
+  @db_cursor
+  async def get_cooldown_start(self, cursor, task_cooldown, table, cooldown_length, id_column, id):
+    await self.check_entity_presence(cursor, table, id_column, id)
+    statement = f"SELECT {task_cooldown} FROM {table} WHERE {id_column} = :id"
+    await cursor.execute(statement, {"id": id})
+    row = await cursor.fetchone()
     if row is None:
+      await self.update_cooldown(task_cooldown, table, id_column, id)
       return 0
     cooldown_start_time = row[0]
     if cooldown_start_time is None:
+      await self.update_cooldown(task_cooldown, table, id_column, id)
       return 0
-    remaining_cooldown_seconds = self.calculate_remaining_cooldown(cooldown_length, cooldown_start_time)
+    remaining_cooldown_seconds = await self.calculate_remaining_cooldown(cooldown_length, cooldown_start_time)
     return remaining_cooldown_seconds
 
   @db_cursor
-  def update_coins(self, cursor, id, coins):
-    self.check_entity_presence(cursor, self.user_table, self.user_column, id)
-    statement = f"UPDATE users SET balance = :coins WHERE user_id = :id"
-    cursor.execute(statement, {"coins": coins, "id": id})
+  async def update_coins(self, cursor, id, coins):
+    await self.check_entity_presence(cursor, constants.USER_TABLE, constants.USER_COLUMN, id)
+    statement = f"UPDATE {constants.USER_TABLE} SET balance = :coins WHERE {constants.USER_COLUMN} = :id"
+    await cursor.execute(statement, {"coins": coins, "id": id})
     return True
 
   @db_cursor
-  def get_balance(self, cursor, id):
-    self.check_entity_presence(cursor, self.user_table, self.user_column, id)
-    statement = f"SELECT balance FROM users WHERE user_id = :id"
-    cursor.execute(statement, {"id": id})
-    row = cursor.fetchone()
+  async def get_balance(self, cursor, id):
+    await self.check_entity_presence(cursor, constants.USER_TABLE, constants.USER_COLUMN, id)
+    statement = f"SELECT balance FROM {constants.USER_TABLE} WHERE {constants.USER_COLUMN} = :id"
+    await cursor.execute(statement, {"id": id})
+    row = await cursor.fetchone()
     return row[0]
 
-  def check_entity_presence(self, cursor, table, id_column, id_value):
+  async def check_entity_presence(self, cursor, table, id_column, id_value):
     statement = f"SELECT 1 FROM {table} WHERE {id_column} = :id_value LIMIT 1"
-    cursor.execute(statement, {"id_value": id_value})
-    row = cursor.fetchone()
+    await cursor.execute(statement, {"id_value": id_value})
+    row = await cursor.fetchone()
 
     if row is None:
-      self.add_entity(cursor, table, id_column, id_value)
+      await self.add_entity(cursor, table, id_column, id_value)
 
-  def add_entity(self, cursor, table, id_column, id_value):
+  async def add_entity(self, cursor, table, id_column, id_value):
     statement = f"INSERT INTO {table} ({id_column}) VALUES (:id_value)"
-    cursor.execute(statement, {"id_value": id_value})
+    await cursor.execute(statement, {"id_value": id_value})

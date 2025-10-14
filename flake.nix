@@ -15,6 +15,7 @@
        discordpy
        python-dotenv
        google-api-python-client
+       aiosqlite
      ]);
    in
    {
