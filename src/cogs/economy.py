@@ -96,8 +96,8 @@ class Economy(commands.Cog):
       await inter.response.send_message(embed=embed)
       return
 
-    remaining_time = await self.calculate_remaining_time(const.COOLDOWNS["daily"], result)
-    hours, minutes = await self.format_remaining_time(remaining_time)
+    remaining_time = self.calculate_remaining_time(const.COOLDOWNS["daily"], result)
+    hours, minutes = self.format_remaining_time(remaining_time)
     embed = discord.Embed(
       title="Daily :coin:",
       description=f"You can't claim your daily for another {hours}hrs and {minutes}m",
@@ -212,7 +212,7 @@ class Economy(commands.Cog):
 
   @group.command(name="beg", description="Beg for money.")
   async def beg(self, inter: discord.Interaction) -> None:
-    success = await self.percentage_chance(15)
+    success = self.percentage_chance(15)
 
     if success:
       payout = random.randint(const.MIN_BEG_PAYOUT, const.MAX_BEG_PAYOUT)
