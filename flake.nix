@@ -14,7 +14,7 @@
        requests
        discordpy
        python-dotenv
-       google-api-python-client
+       ddgs
        aiosqlite
      ]);
    in

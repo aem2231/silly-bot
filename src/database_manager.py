@@ -21,7 +21,6 @@ def db_cursor(
 
       for attempt in range(max_retries + 1):
         try:
-          # Check connection health before proceeding
           await self._ensure_connection_alive()
 
           async with self.conn.cursor() as cursor:
@@ -35,7 +34,6 @@ def db_cursor(
               return result
 
             except Exception as e:
-              # Log detailed error information
               logger.error(
                 f"Database error in {func.__name__}: {type(e).__name__}: {e}",
                 extra={
@@ -63,11 +61,9 @@ def db_cursor(
             raise
 
         except Exception as e:
-          # Non-retryable exceptions
           self._log_critical_error(func.__name__, e, args, kwargs)
           raise
 
-      # This shouldn't be reached, but just in case
       if last_exception:
         raise last_exception
 

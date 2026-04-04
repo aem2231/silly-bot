@@ -4,7 +4,7 @@ from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
 import os
-from googleapiclient.discovery import build
+from ddgs import DDGS
 import random
 import requests
 
@@ -12,30 +12,37 @@ class Media(commands.Cog):
 
   def __init__(self, bot: commands.Bot) -> None:
     self.bot: commands.Bot = bot
-    self.GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
-    self.ENGINE_ID: str | None = os.getenv("ENGINE_ID")
     self.GIPHY_KEY: str | None = os.getenv("GIPHY_KEY")
 
   @app_commands.command(name="image_search", description="Returns an image based on a search term")
   @app_commands.describe(query="Search term")
   async def imagesearch(self, inter: discord.Interaction, query: str) -> None:
-    if not self.GOOGLE_API_KEY or not self.ENGINE_ID:
-      _ = await inter.response.send_message("Google API key or Engine ID is not configured.")
-      return
-
     _ = await inter.response.defer()
 
     try:
-      service = build("customsearch", "v1", developerKey=self.GOOGLE_API_KEY)  # pyright: ignore[reportUnknownVariableType]
-      res = service.cse().list(q=query, cx=self.ENGINE_ID, searchType="image").execute()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-      items: list[dict] = res.get("items", [])  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+      results = DDGS().images(
+        query=query,
+        keywords=query,
+        region="wt-wt",
+        safesearch="off",
+        size=None,
+        color=None,
+        type_image=None,
+        layout=None,
+        license_image=None,
+        max_results=10,
+      )
+
+      items = list(results)
       if not items:
         await inter.followup.send("No results found.")
         return
+
       number = random.randint(0, len(items) - 1)
       data: dict = items[number]
-      image: str = data['link']
-      source: str = data['image']['contextLink']
+      image: str = data.get('image', '')
+      source: str = data.get('url', '')
+
       embed = discord.Embed(
         title=f"Result for {query}",
         color=discord.Color.random()
@@ -45,7 +52,8 @@ class Media(commands.Cog):
 
       _ = await inter.followup.send(embed=embed)
     except Exception as e:
-      _ = await inter.followup.send(f"Something went wrong: {e}")
+      print(f"Error in imagesearch: {e}")
+      _ = await inter.followup.send("An error occurred while searching for the image.")
 
   async def fetch_giphy_gif(self, query: str) -> str | None:
     try:
