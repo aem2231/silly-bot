@@ -16,6 +16,9 @@
        python-dotenv
        ddgs
        aiosqlite
+       sqlalchemy
+       pydantic
+       pydantic-settings
      ]);
    in
    {
