@@ -12,13 +12,15 @@ class Levelling(commands.Cog):
         self.bot = bot
 
     def calculate_next_level_xp(self, x: int) -> int:
-        return int(15 * (x ** 2) + 30 * x + 45)
+        return int(50 * (x ** 2) + 100 * x + 200)
 
     def calculate_multiplier(self, level: int) -> float:
-        return 1.0 + (level / 10)
+        return 1.0 + (min(level, 50) / 10)
 
     def calculate_xp_increase(self, message: str, multiplier: float) -> int:
-        return round(int(len(message)) * multiplier) // 2
+        base = min(len(message), 200)
+        xp = round(base * multiplier) // 2
+        return max(xp, 5)
 
     def check_level_up(self, xp: int, xp_needed: int) -> bool:
         return xp >= xp_needed
@@ -33,9 +35,6 @@ class Levelling(commands.Cog):
             return
 
         user_id = str(message.author.id)
-        print("test")
-
-
 
         async with AsyncSessionLocal() as session:
             if not await crud.get_user_by_id(session, user_id):
