@@ -43,7 +43,6 @@ async def get_server_by_id(db: AsyncSession, guild_id: str) -> Optional[Server]:
     result = await db.execute(select(Server).filter(Server.guild_id == str(guild_id)))
     return result.scalars().first()
 
-
 async def get_daily_cooldown(db: AsyncSession, user_id: str) -> int:
     db_user = await get_user_by_id(db, user_id)
     if not db_user:
@@ -82,3 +81,48 @@ async def update_bank_rob_cooldown(db: AsyncSession, guild_id: str) -> None:
         db_server = await register_server(db, guild_id)
     db_server.last_bank_rob = int(datetime.datetime.now().timestamp())
     await db.commit()
+
+async def get_user_level(db: AsyncSession, user_id: str) -> int:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    return db_user.level
+
+async def update_user_level(db: AsyncSession, user_id: str, level: int) -> None:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    db_user.level = level
+    await db.commit()
+
+async def get_user_xp(db: AsyncSession, user_id: str) -> int:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    return db_user.xp
+
+async def update_user_xp(db: AsyncSession, user_id: str, xp: int) -> None:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    db_user.xp = xp
+    await db.commit()
+
+async def get_user_level_xp(db: AsyncSession, user_id: str) -> int:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    return db_user.level_xp
+
+async def update_user_level_xp(db: AsyncSession, user_id: str, level_xp: int) -> None:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    db_user.level_xp = level_xp
+    await db.commit()
+
+async def get_user_level_progress(db: AsyncSession, user_id: str) -> float:
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        db_user = await register_user(db, user_id)
+    return db_user.xp / db_user.level_xp

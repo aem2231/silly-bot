@@ -5,8 +5,9 @@ from discord.ext import commands
 from core.config import settings
 from db.database import Base, engine
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.message_content = True
+intents.messages = True
 client = commands.Bot(command_prefix="!", intents=intents)
 tree = client.tree
 
@@ -21,11 +22,11 @@ async def on_ready():
                 print(f"{cog[:-3]} cog loaded successfully.")
             except Exception as e:
                 print(f"Failed to load {cog[:-3]} cog: {e}")
-                
+
     # create all tables in database after cogs load
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
     _ = await tree.sync()
 
 
