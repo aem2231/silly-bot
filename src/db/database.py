@@ -1,7 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from core.config import settings
-from typing import AsyncGenerator
+from functools import wraps
+from typing import Callable, Any
 
 db_url = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 
@@ -21,3 +22,13 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 Base = declarative_base()
+
+def with_db(func: Callable) -> Callable:
+    """decorator to provide AsyncSession"""
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        async with AsyncSessionLocal() as session:
+            kwargs['db'] = session
+            return await func(*args, **kwargs)
+    return wrapper
