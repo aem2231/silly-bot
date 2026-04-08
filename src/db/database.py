@@ -3,6 +3,7 @@ from sqlalchemy.orm import declarative_base
 from core.config import settings
 from functools import wraps
 from typing import Callable, Any
+import inspect
 
 db_url = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 
@@ -24,11 +25,16 @@ AsyncSessionLocal = async_sessionmaker(
 Base = declarative_base()
 
 def with_db(func: Callable) -> Callable:
-    """decorator to provide AsyncSession"""
-
+    """Decorator to provide an AsyncSession."""
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         async with AsyncSessionLocal() as session:
             kwargs['db'] = session
             return await func(*args, **kwargs)
+
+    sig = inspect.signature(func)
+    if 'db' in sig.parameters:
+        new_params = [p for name, p in sig.parameters.items() if name != 'db']
+        wrapper.__signature__ = sig.replace(parameters=new_params) # type: ignore
+
     return wrapper
