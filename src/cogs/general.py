@@ -44,6 +44,12 @@ class General(commands.Cog):
       inline=False
     )
 
+    embed.add_field(
+        name="Levelling",
+        value="`/level` - Check your level\n`/leaderboard` - Check the leaderboard",
+        inline=False
+    )
+
     _ = await inter.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot) -> None:
