@@ -39,7 +39,7 @@ class Media(commands.Cog):
     async def send_gif_embed(self, inter: discord.Interaction, user: discord.Member, action: str, gif_url: str | None, color: discord.Color) -> None:
         _ = await inter.response.defer()
 
-        if gif_url:
+        if gif_url is not None:
             embed = discord.Embed(
                 description=f"{inter.user.mention} {action} {user.mention}!",
                 color=color
@@ -64,7 +64,7 @@ class Media(commands.Cog):
     @app_commands.command(name="kill", description="Kill a user")
     @app_commands.describe(user="user")
     async def kill(self, inter: discord.Interaction, user: discord.Member):
-        gif_url: str | None = await self.fetch_giphy_gif("manga anime killing stabbing")
+        gif_url: str | None = await self.fetch_giphy_gif("manga anime fight")
         await self.send_gif_embed(inter, user, "killed", gif_url, discord.Color.dark_red())
 
     @app_commands.command(name="slap", description="Slap a user")
