@@ -36,7 +36,7 @@ class Media(commands.Cog):
     except Exception as e:
       return None
 
-async def send_gif_embed(self, inter: discord.Interaction, user: discord.Member, action: str, gif_url: str | None, color: discord.Color) -> None:
+  async def send_gif_embed(self, inter: discord.Interaction, user: discord.Member, action: str, gif_url: str | None, color: discord.Color) -> None:
     _ = await inter.response.defer()
 
     if gif_url:
