@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from db.models.users import User
 from db.models.server import Server
-from typing import Optional
+from typing import Optional, List
 import datetime
 
 async def register_user(db: AsyncSession, user_id: str, initial_balance: int = 0) -> User:
@@ -126,3 +126,7 @@ async def get_user_level_progress(db: AsyncSession, user_id: str) -> float:
     if not db_user:
         db_user = await register_user(db, user_id)
     return db_user.xp / db_user.level_xp
+
+async def get_top_users_global(db: AsyncSession, limit: int = 10) -> List[User]:
+    result = await db.execute(select(User).order_by(User.xp.desc()).limit(limit))
+    return result.scalars().all()

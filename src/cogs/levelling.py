@@ -1,3 +1,4 @@
+from zlib import MAX_WBITS
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -7,7 +8,6 @@ from core import constants as const
 import random
 
 class Levelling(commands.Cog):
-    group = app_commands.Group(name="levelling", description="levels idk")
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -18,6 +18,8 @@ class Levelling(commands.Cog):
         return 1.0 + (min(level, 50) / 10)
 
     def calculate_xp_increase(self, message: str, multiplier: float) -> int:
+        if len(message) < 3:
+            return 0
         base = min(len(message), 200)
         xp = round(base * multiplier) // 2
         return max(xp, 5)
@@ -35,6 +37,7 @@ class Levelling(commands.Cog):
             return
 
         user_id = str(message.author.id)
+        print(message.content)
 
         async with AsyncSessionLocal() as session:
             if not await crud.get_user_by_id(session, user_id):
@@ -61,7 +64,7 @@ class Levelling(commands.Cog):
             else:
                 await crud.update_user_xp(session, user_id, new_xp)
 
-    @group.command(name="level", description="View your level and XP")
+    @app_commands.command(name="level", description="View your level and XP")
     async def level(self, inter: discord.Interaction):
         user_id = str(inter.user.id)
 
@@ -70,6 +73,15 @@ class Levelling(commands.Cog):
             xp = await crud.get_user_xp(session, user_id)
         embed = discord.Embed(title=f"{inter.user.name}'s Level", description=f"Level: {level}\nXP: {xp}\n{xp}/{self.calculate_next_level_xp(level)} for next level.")
         await inter.response.send_message(embed=embed)
+
+    @app_commands.command(name="leaderboard", description="View the leaderboard")
+    async def leaderboard(self, inter: discord.Interaction):
+        async with AsyncSessionLocal() as session:
+            users = await crud.get_top_users_global(session, 10)
+            leaderboard = "\n".join([f"{i+1}. <@{user.user_id}> - Level {user.level}" for i, user in enumerate(users)]) # update db to store usernames eventually
+            embed = discord.Embed(title="Leaderboard", description=leaderboard)
+            await inter.response.send_message(embed=embed)
+
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Levelling(bot))
