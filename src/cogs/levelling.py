@@ -56,6 +56,7 @@ class Levelling(commands.Cog):
 
             embed = await self.get_level_up_embed(user_id, new_level)
             await message.channel.send(embed=embed)
+            await crud.update_user_xp(db, user_id, 0)
         else:
             await crud.update_user_xp(db, user_id, new_xp)
 
