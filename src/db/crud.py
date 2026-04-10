@@ -128,5 +128,5 @@ async def get_user_level_progress(db: AsyncSession, user_id: str) -> float:
     return db_user.xp / db_user.level_xp
 
 async def get_top_users_global(db: AsyncSession, limit: int = 10) -> List[User]:
-    result = await db.execute(select(User).order_by(User.xp.desc()).limit(limit))
+    result = await db.execute(select(User).order_by(User.level.desc()).limit(limit))
     return result.scalars().all()
