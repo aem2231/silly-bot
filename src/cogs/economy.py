@@ -223,5 +223,23 @@ class Economy(commands.Cog):
 
         await inter.response.send_message(embed=embed)
 
+    @group.command(name="gift", description="Donate coins to a user.")
+    @app_commands.describe(user="user",amount="coins to gift")
+    @with_db
+    async def gift(self, inter: discord.Interaction, user: discord.Member, amount: int, db: AsyncSession):
+        gifter_id: str = str(inter.user.id)
+        recipient: str = str(user.id)
+        await crud.update_user_balance(db, gifter_id, -amount)
+        await crud.update_user_balance(db, recipient, amount)
+
+        embed = discord.Embed(
+            title=":gift: Gift!",
+            description=f"{inter.user.mention} gifted {user.mention} {amount} coins.",
+            color=discord.Color.green()
+        )
+
+        await inter.response.send_message(embed=embed)
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Economy(bot))
