@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     GIPHY_KEY: str
     DB_PATH: Path = DB_PATH
+    DEV_ID: int
     COGS_PATH: Path = COGS_PATH
 
 

@@ -31,7 +31,7 @@ async def on_ready():
 
 
 async def is_developer(interaction: discord.Interaction):
-    return interaction.user.id in [708680864728350790, 432799156440924160]
+    return interaction.user.id == settings.DEV_ID
 
 
 @client.tree.command(name="reload-extension")
