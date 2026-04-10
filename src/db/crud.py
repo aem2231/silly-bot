@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import update
 from db.models.users import User
 from db.models.server import Server
 from typing import Optional, List
@@ -107,25 +108,6 @@ async def update_user_xp(db: AsyncSession, user_id: str, xp: int) -> None:
         db_user = await register_user(db, user_id)
     db_user.xp = xp
     await db.commit()
-
-async def get_user_level_xp(db: AsyncSession, user_id: str) -> int:
-    db_user = await get_user_by_id(db, user_id)
-    if not db_user:
-        db_user = await register_user(db, user_id)
-    return db_user.level_xp
-
-async def update_user_level_xp(db: AsyncSession, user_id: str, level_xp: int) -> None:
-    db_user = await get_user_by_id(db, user_id)
-    if not db_user:
-        db_user = await register_user(db, user_id)
-    db_user.level_xp = level_xp
-    await db.commit()
-
-async def get_user_level_progress(db: AsyncSession, user_id: str) -> float:
-    db_user = await get_user_by_id(db, user_id)
-    if not db_user:
-        db_user = await register_user(db, user_id)
-    return db_user.xp / db_user.level_xp
 
 async def get_top_users_global(db: AsyncSession, limit: int = 10) -> List[User]:
     result = await db.execute(select(User).order_by(User.level.desc()).limit(limit))
